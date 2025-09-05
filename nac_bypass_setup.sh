@@ -271,7 +271,16 @@ ConnectionSetup() {
 
     ## Create default routes so we can route traffic - all traffic goes to the bridge gateway and this traffic gets Layer 2 sent to GWMAC
     arp -s -i $BRINT $BRGW $GWMAC
-    route add default gw $BRGW dev $BRINT metric 10
+    #route add default gw $BRGW dev $BRINT metric 10
+
+    # Route private class ips through bridge interface
+    ip route add 10.0.0.0/8 via $BRGW dev $BRINT
+    ip route add 172.16.0.0/12 via $BRGW dev $BRINT
+    ip route add 192.168.0.0/16 via $BRGW dev $BRINT
+    ip route add 169.254.0.0/16 via $BRGW dev $BRINT
+
+    # Remove default route by nac_bypass.sh (if it exists)
+    ip route del default via $BRGW dev $BRINT
 
     ## SSH CALLBACK if we receive inbound on br0 for VICTIMIP:DPORT forward to BRIP on SSH
     if [ "$OPTION_SSH" -eq 1 ]; then
