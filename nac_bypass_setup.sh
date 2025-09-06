@@ -33,7 +33,6 @@ BRGW=169.254.66.1 # Gateway IP address for the bridge
 
 TEMP_FILE=/tmp/tcpdump.pcap
 OPTION_RESPONDER=0
-OPTION_SSH=0
 OPTION_AUTONOMOUS=0
 OPTION_CONNECTION_SETUP_ONLY=0
 OPTION_INITIAL_SETUP_ONLY=0
@@ -63,8 +62,6 @@ PORT_TCP_IMAP=143
 PORT_TCP_PROXY=3128
 PORT_UDP_MULTICAST=5553
 
-DPORT_SSH=50222 #SSH call back port use victimip:50022 to connect to attackerbox:sshport
-PORT_SSH=50022
 RANGE=61000-62000 #Ports for my traffic on NAT
 
 ## display usage hints
@@ -79,7 +76,6 @@ Usage() {
   echo "    -i          start initial setup only"
   echo "    -r          reset all settings"
   echo "    -R          enable port redirection for Responder"
-  echo "    -S          enable port redirection for OpenSSH and start the service"
   exit 0
 }
 
@@ -121,12 +117,8 @@ CheckParams() {
         "R")
           OPTION_RESPONDER=1
           ;;
-        "S")
-          OPTION_SSH=1
-          ;;
         *)
           OPTION_RESPONDER=0
-          OPTION_SSH=0
           OPTION_AUTONOMOUS=0
           ;;
       esac
@@ -282,17 +274,6 @@ ConnectionSetup() {
     # Remove default route by nac_bypass.sh (if it exists)
     ip route del default via $BRGW dev $BRINT
 
-    ## SSH CALLBACK if we receive inbound on br0 for VICTIMIP:DPORT forward to BRIP on SSH
-    if [ "$OPTION_SSH" -eq 1 ]; then
-
-        if [ "$OPTION_AUTONOMOUS" -eq 0 ]; then
-            echo
-            echo -e "$INFO [ * ] Setting up SSH reverse shell inbound on $COMIP:$DPORT_SSH and start OpenSSH daemon $TXTRST"
-            echo
-        fi
-        $CMD_IPTABLES -t nat -A PREROUTING -i br0 -d $COMIP -p tcp --dport $DPORT_SSH -j DNAT --to $BRIP:$PORT_SSH
-    fi
-
     if [ "$OPTION_RESPONDER" -eq 1 ]; then
 
         if [ "$OPTION_AUTONOMOUS" -eq 0 ]; then
@@ -326,11 +307,6 @@ ConnectionSetup() {
     $CMD_IPTABLES -t nat -A POSTROUTING -o $BRINT -s $BRIP -p tcp -j SNAT --to $COMIP:$RANGE
     $CMD_IPTABLES -t nat -A POSTROUTING -o $BRINT -s $BRIP -p udp -j SNAT --to $COMIP:$RANGE
     $CMD_IPTABLES -t nat -A POSTROUTING -o $BRINT -s $BRIP -p icmp -j SNAT --to $COMIP
-
-    ## START SSH
-    if [ "$OPTION_SSH" -eq 1 ]; then
-        systemctl start ssh.service
-    fi
 
     ## Finish
     if [ "$OPTION_AUTONOMOUS" -eq 0 ]; then
