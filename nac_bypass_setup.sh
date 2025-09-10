@@ -384,6 +384,8 @@ Reset() {
       echo "Debug: Removed route for $DOMAIN_IP dev $SIDE"
       route del -net $TS_SUBNET dev $TS
       echo "Debug: Removed route for $TS_SUBNET dev $TS"
+      sed -i "/$DOMAIN_IP[[:space:]]\+$DOMAIN/d" /etc/hosts
+      echo "Debug: Removed /etc/hosts entry for $DOMAIN ($DOMAIN_IP)"
     fi
 
     # Flush EB, ARP- and IPTABLES
