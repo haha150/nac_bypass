@@ -287,7 +287,6 @@ ConnectionSetup() {
 
     if [ -n "$DOMAIN_IP" ] && [ -n "$SIDE" ]; then
       SIDE_DEFAULT_GW=$(ip route | awk '/default/ && $5 == "'"$SIDE"'" {print $3; exit}')
-      export SIDE_DEFAULT_GW
       echo "Debug: SIDE_DEFAULT_GW for $SIDE is $SIDE_DEFAULT_GW"
       if [ -n "$SIDE_DEFAULT_GW" ]; then
         route add -host $DOMAIN_IP gw $SIDE_DEFAULT_GW dev $SIDE
@@ -379,7 +378,9 @@ Reset() {
 
     # Delete temporary routes
     echo "Debug: Resetting temporary routes..."
-    if [ -n "$SIDE" ]; then
+    if [ -n "$SIDE" ] && [ -n "$DOMAIN" ]; then
+      DOMAIN_IP=$(getent hosts $DOMAIN | awk '{ print $1 }')
+      SIDE_DEFAULT_GW=$(ip route | awk '/default/ && $5 == "'"$SIDE"'" {print $3; exit}')
       route del -host $DOMAIN_IP gw $SIDE_DEFAULT_GW dev $SIDE
       echo "Debug: Removed route for $DOMAIN_IP via $SIDE_DEFAULT_GW dev $SIDE"
       route del -net $TS_SUBNET dev $TS
