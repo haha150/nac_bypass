@@ -380,9 +380,8 @@ Reset() {
     echo "Debug: Resetting temporary routes..."
     if [ -n "$SIDE" ] && [ -n "$DOMAIN" ]; then
       DOMAIN_IP=$(getent hosts $DOMAIN | awk '{ print $1 }')
-      SIDE_DEFAULT_GW=$(ip route | awk '/default/ && $5 == "'"$SIDE"'" {print $3; exit}')
-      route del -host $DOMAIN_IP gw $SIDE_DEFAULT_GW dev $SIDE
-      echo "Debug: Removed route for $DOMAIN_IP via $SIDE_DEFAULT_GW dev $SIDE"
+      route del -host $DOMAIN_IP
+      echo "Debug: Removed route for $DOMAIN_IP dev $SIDE"
       route del -net $TS_SUBNET dev $TS
       echo "Debug: Removed route for $TS_SUBNET dev $TS"
     fi
