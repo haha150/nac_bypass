@@ -23,6 +23,7 @@ INFO="\e[1;34m" # blue
 WARN="\e[1;31m" # red
 INP="\e[1;36m" # cyan
 
+
 BRINT=br0 # bridge interface
 SWINT=eth0 # network interface plugged into switch
 SWMAC=00:11:22:33:44:55 # initial value, is set during initialisation
@@ -35,6 +36,8 @@ SIDE="" # sidechannel interface (optional, e.g., usb0)
 DOMAIN="" # DOMAIN of headscale server (optional)
 TS=tailscale0 # Tailscale interface (optional)
 TS_SUBNET=100.64.0.0/10 # Tailscale subnet (optional)
+DOMAIN_IP="" # Global: resolved IP for DOMAIN
+SIDE_DEFAULT_GW="" # Global: default gateway for SIDE
 
 TEMP_FILE=/tmp/tcpdump.pcap
 OPTION_RESPONDER=0
@@ -275,7 +278,7 @@ ConnectionSetup() {
     $CMD_EBTABLES -t nat -A POSTROUTING -s $SWMAC -o $BRINT -j snat --to-src $COMPMAC
 
     if [ -n "$DOMAIN" ]; then
-        DOMAIN_IP=`getent hosts $DOMAIN | awk '{ print $1 }'`
+        DOMAIN_IP=$(getent hosts $DOMAIN | awk '{ print $1 }')
         if [ -z "$DOMAIN_IP" ]; then
             error_exit "Failed to resolve DOMAIN: $DOMAIN"
         fi
@@ -284,6 +287,7 @@ ConnectionSetup() {
 
     if [ -n "$DOMAIN_IP" ] && [ -n "$SIDE" ]; then
       SIDE_DEFAULT_GW=$(ip route | awk '/default/ && $5 == "'"$SIDE"'" {print $3; exit}')
+      export SIDE_DEFAULT_GW
       echo "Debug: SIDE_DEFAULT_GW for $SIDE is $SIDE_DEFAULT_GW"
       if [ -n "$SIDE_DEFAULT_GW" ]; then
         route add -host $DOMAIN_IP gw $SIDE_DEFAULT_GW dev $SIDE
@@ -375,7 +379,7 @@ Reset() {
 
     # Delete temporary routes
     echo "Debug: Resetting temporary routes..."
-    if [ -n "$DOMAIN_IP" ] && [ -n "$SIDE" ] && [ -n "$SIDE_DEFAULT_GW" ]; then
+    if [ -n "$SIDE" ]; then
       route del -host $DOMAIN_IP gw $SIDE_DEFAULT_GW dev $SIDE
       echo "Debug: Removed route for $DOMAIN_IP via $SIDE_DEFAULT_GW dev $SIDE"
       route del -net $TS_SUBNET dev $TS
