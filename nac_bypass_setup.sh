@@ -32,7 +32,7 @@ COMPINT=eth1 # network interface plugged into victim machine
 BRIP=169.254.66.66 # IP address for the bridge
 BRGW=169.254.66.1 # Gateway IP address for the bridge
 
-SIDE="" # sidechannel interface (optional, e.g., usb0)
+SIDE="usb0" # sidechannel interface (optional, e.g., usb0)
 DOMAIN="" # DOMAIN of headscale server (optional)
 TS=tailscale0 # Tailscale interface (optional)
 TS_SUBNET=100.64.0.0/10 # Tailscale subnet (optional)
