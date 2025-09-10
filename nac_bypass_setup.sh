@@ -75,7 +75,7 @@ Usage() {
   echo "    -1 <eth>    network interface plugged into switch"
   echo "    -2 <eth>    network interface plugged into victim machine"
   echo "    -3 <eth>    network interface for sidechannel communication (optional, e.g., usb0)"
-  echo "    -d <domain>    domain of headscale server (optional, e.g., headscale.example.com)"
+  echo "    -d <domain> domain of headscale server (optional, e.g., headscale.example.com)"
   echo "    -a          autonomous mode"
   echo "    -c          start connection setup only"
   echo "    -g <MAC>    set gateway MAC address (GWMAC) manually"
