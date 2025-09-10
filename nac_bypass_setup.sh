@@ -284,9 +284,15 @@ ConnectionSetup() {
 
     if [ -n "$DOMAIN_IP" ] && [ -n "$SIDE" ]; then
       SIDE_DEFAULT_GW=$(ip route | awk '/default/ && $5 == "'"$SIDE"'" {print $3; exit}')
+      # debug
+      echo "Debug: SIDE_DEFAULT_GW for $SIDE is $SIDE_DEFAULT_GW"
       if [ -n "$SIDE_DEFAULT_GW" ]; then
-        route add $DOMAIN_IP via $SIDE_DEFAULT_GW dev $SIDE
-        route add $TS_SUBNET dev $TS
+        route add -host $DOMAIN_IP gw $SIDE_DEFAULT_GW dev $SIDE
+        # debug
+        echo "Debug: Added route for $DOMAIN_IP via $SIDE_DEFAULT_GW dev $SIDE"
+        route add -net $TS_SUBNET dev $TS
+        # debug
+        echo "Debug: Added route for $TS_SUBNET dev $TS"
       else
         echo "Warning: Could not determine default gateway for interface $SIDE. Route not added."
       fi
@@ -369,6 +375,12 @@ Reset() {
     ## Delete default route
     arp -d -i $BRINT $BRGW $GWMAC
     route del default dev $BRINT
+
+    # Delete temporary routes
+    if [ -n "$DOMAIN_IP" ] && [ -n "$SIDE" ] && [ -n "$SIDE_DEFAULT_GW" ]; then
+      route del -host $DOMAIN_IP gw $SIDE_DEFAULT_GW dev $SIDE
+      route del -net $TS_SUBNET dev $TS
+    fi
 
     # Flush EB, ARP- and IPTABLES
     $CMD_EBTABLES -F
