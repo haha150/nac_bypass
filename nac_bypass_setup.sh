@@ -280,7 +280,7 @@ ConnectionSetup() {
     if [ -n "$DOMAIN" ]; then
         DOMAIN_IP=$(getent hosts $DOMAIN | awk '{ print $1 }')
         if [ -z "$DOMAIN_IP" ]; then
-            error_exit "Failed to resolve DOMAIN: $DOMAIN"
+            echo "Failed to resolve DOMAIN: $DOMAIN"
         fi
         echo "$DOMAIN_IP    $DOMAIN" >> /etc/hosts
     fi
