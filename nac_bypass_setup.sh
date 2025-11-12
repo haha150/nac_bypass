@@ -25,18 +25,18 @@ INP="\e[1;36m" # cyan
 
 
 BRINT=br0 # bridge interface
-SWINT=eth0 # network interface plugged into switch
+SWINT=eth1 # network interface plugged into switch
 SWMAC=00:11:22:33:44:55 # initial value, is set during initialisation
-COMPINT=eth1 # network interface plugged into victim machine
+COMPINT=eth2 # network interface plugged into victim machine
 
 BRIP=169.254.66.66 # IP address for the bridge
 BRGW=169.254.66.1 # Gateway IP address for the bridge
 
 SIDE="usb0" # sidechannel interface (optional, e.g., usb0)
-DOMAIN="" # DOMAIN of headscale server (optional)
+DOMAIN="head.symeri.se" # DOMAIN of headscale server (optional)
 TS=tailscale0 # Tailscale interface (optional)
 TS_SUBNET=100.64.0.0/10 # Tailscale subnet (optional)
-DOMAIN_IP="" # Global: resolved IP for DOMAIN
+DOMAIN_IP="172.232.132.149" # Global: resolved IP for DOMAIN
 SIDE_DEFAULT_GW="" # Global: default gateway for SIDE
 
 TEMP_FILE=/tmp/tcpdump.pcap
@@ -277,15 +277,9 @@ ConnectionSetup() {
     $CMD_EBTABLES -t nat -A POSTROUTING -s $SWMAC -o $SWINT -j snat --to-src $COMPMAC
     $CMD_EBTABLES -t nat -A POSTROUTING -s $SWMAC -o $BRINT -j snat --to-src $COMPMAC
 
-    if [ -n "$DOMAIN" ]; then
-        DOMAIN_IP=$(getent hosts $DOMAIN | awk '{ print $1 }')
-        if [ -z "$DOMAIN_IP" ]; then
-            echo -e "Failed to resolve DOMAIN: $DOMAIN"
-        fi
-        echo "$DOMAIN_IP    $DOMAIN" >> /etc/hosts
-    fi
+    echo "$DOMAIN_IP    $DOMAIN" >> /etc/hosts
 
-    if [ -n "$DOMAIN_IP" ] && [ -n "$SIDE" ]; then
+    if [ -n "$SIDE" ]; then
       SIDE_DEFAULT_GW=$(ip route | awk '/default/ && $5 == "'"$SIDE"'" {print $3; exit}')
       echo "Debug: SIDE_DEFAULT_GW for $SIDE is $SIDE_DEFAULT_GW"
       if [ -n "$SIDE_DEFAULT_GW" ]; then
@@ -378,8 +372,7 @@ Reset() {
 
     # Delete temporary routes
     echo "Debug: Resetting temporary routes..."
-    if [ -n "$SIDE" ] && [ -n "$DOMAIN" ]; then
-      DOMAIN_IP=$(getent hosts $DOMAIN | awk '{ print $1 }')
+    if [ -n "$SIDE" ]; then
       route del -host $DOMAIN_IP
       echo "Debug: Removed route for $DOMAIN_IP dev $SIDE"
       route del -net $TS_SUBNET dev $TS
